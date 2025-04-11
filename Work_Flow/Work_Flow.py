@@ -7,39 +7,61 @@ from datetime import datetime, timedelta
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import torch
 import torch.nn.functional as F
-
+from prophet import Prophet
+from prophet.plot import plot_plotly
+import matplotlib.pyplot as plt
 # 1. Carga de datos
-# Descargar las noticias / Crypto panic
+# Descargar las noticias / Crypto panic NewsAPI
 @task
 def download_bitcoin_news():
-    """
-    Descarga noticias de Bitcoin desde la API de CryptoPanic y filtra las de los últimos 5 días.
-    """
-    API_KEY = "4760b36976ccd9d3da9909e92509ca3f67f3f19b"  # 🔁 Reemplaza esto por tu clave real
-    url = "https://cryptopanic.com/api/v1/posts/"
+    # Tu API Key de NewsAPI
+    '''API_KEY = 'a8a6fc010f8445b7b236369fb7bf273d'
+
+    # Fechas
+    hoy = datetime.now()
+    hace_30_dias = hoy - timedelta(days=30)
+
+    # Convertir fechas al formato requerido por la API
+    from_date = hace_30_dias.strftime('%Y-%m-%d')
+    to_date = hoy.strftime('%Y-%m-%d')
+
+    # Endpoint de NewsAPI
+    url = 'https://newsapi.org/v2/everything'
+
+    # Parámetros de búsqueda
     params = {
-        "auth_token": API_KEY,
-        "currencies": "BTC",
-        "public": "true"
+        'q': 'bitcoin',
+        'from': from_date,
+        'to': to_date,
+        'language': 'es',
+        'sortBy': 'publishedAt',
+        'pageSize': 2,
+        'apiKey': API_KEY
     }
 
+    # Hacer la solicitud
     response = requests.get(url, params=params)
-    if response.status_code != 200:
-        raise Exception(f"Error al obtener datos: {response.status_code}")
-
     data = response.json()
-    results = data.get("results", [])
-    if not results:
-        print("No se encontraron noticias.")
-        return pd.DataFrame()
 
-    # Convertir a DataFrame
-    df = pd.DataFrame(results)
-    df_final=df.rename(columns={"title": "titulo", "published_at": "fecha"})
-    df_final=df_final[["titulo", "fecha"]]
-    #df_final.to_csv("../Datos/noticias_bitcoin_hoy.csv", index=False)
+    # Extraer y mostrar resultados
+    if data['status'] == 'ok':
+        articles = data['articles']
+        df = pd.DataFrame(articles)
+        df = df[['publishedAt', 'title', 'description', 'url']]
+        df.to_csv('noticias_bitcoin.csv', index=False, encoding='utf-8-sig')
+        print(f"Se guardaron {len(df)} noticias en 'noticias_bitcoin.csv'")
+    else:
+        print("Error:", data)
+    df.to_csv('Datos/noticias_bitcoin.csv', index=False, encoding='utf-8-sig')'''
+    # Cargar el dataset original
+    df = pd.read_csv("Datos/noticias_bitcoin_top3_diarias.csv")
+    df = df.rename(columns={
+    "fecha": "publishedAt",
+    "titulo": "title",
+    "descripcion": "description"
+})
 
-    return df_final 
+    return df
 # Descargar los datos de Bitcoin / yfiannce
 @task
 def download_bitcoin_finance_data():
@@ -48,33 +70,16 @@ def download_bitcoin_finance_data():
     Aquí usamos un período de 1 día y un intervalo diario,
     pero puedes ajustar estos parámetros según tus necesidades.
     """
-    # Obtener laS noticias de hace 1 días
+    # Obtener laS noticias de hace 30 días
     
-    btc_data = yf.download("BTC-USD", period="1d", interval="1d")
-    
-    # Convertir el índice a una columna y renombrar las columnas
-    
-    btc_data.reset_index(inplace=True)
-    btc_data.columns = [col[0].lower() for col in btc_data.columns]
-    btc_data.columns = [col.capitalize() for col in btc_data.columns]
-    
-    # Cargar dataset original
-    
-    df_btc=pd.read_csv("Datos/btc_USD_historic.csv")
-    
-    # Concatenar los datasets y eliminar duplicados
-    
-    df_btc["Date"]=pd.to_datetime(df_btc["Date"])
-    btc_data=pd.concat([df_btc,btc_data])
-    #btc_data=btc_data[1:]
-    btc_data = btc_data.drop_duplicates(subset="Date", keep="last")
-    
-    # Guardar el dataset actualizado
+    btc_data = yf.download("BTC-USD", period="30d", interval="1d")
+    btc_data.columns = btc_data.columns.get_level_values(0)
+    df_simple = btc_data[['Close']].reset_index() 
+    df_simple.columns = ['Fecha', 'Close']
 
-    btc_data.to_csv("Datos/btc_USD_historic.csv", index=False)
 
-    return btc_data
 
+    return df_simple
 #Procesar noticias de hoy
 @task
 def procesar_noticias_hoy():
@@ -94,32 +99,76 @@ def procesar_noticias_hoy():
         return score
 
 # Aplicar a la columna de títulos
-    df['score'] = df['titulo'].apply(get_sentiment_score)
-    
+    df['score'] = df['title'].apply(get_sentiment_score)
+    df_final = df.rename(columns={"publishedAt": "fecha", "title": "titulo"})
+    df_final = df_final[['fecha', 'score']]
+    df_final=df_final.groupby('fecha').agg({'score': 'mean'}).reset_index()
+    # Agrupar y calcular la media por fecha
+
 
 # Mostrar resultados
 
-    return df
-# Agrupar noticias por fecha y calcular el promedio de sentimiento
+    return df_final
+# Unir datasets noticias y precio 
 @task
-def agrupar_noticias_por_fecha():
-    df = procesar_noticias_hoy()
-    df['fecha'] = pd.to_datetime(df['fecha'])
-    # Agrupar por fecha y calcular el promedio del sentimiento
-    df_grouped = df.groupby(df['fecha'].dt.date).agg({'score': 'mean'}).reset_index()
-    return df_grouped
-# Eliminar valor de close con fecha mas antigua y concatenar al dataset original
-@task
-# Guradar el dataset actualizado
-def guardar_dataset_actualizado():
-    df_grouped = agrupar_noticias_por_fecha()
-    df_news=pd.read_csv("Datos/noticias_bitcoin_sentimientos.csv")
-    df_news=df_news[['fecha','score']].drop_duplicates(subset='fecha', keep='last')
-    return df_news.columns,df_grouped.columns
-    
-# 2. Entrenar el modelo de noticas
+def unir_datasets():
+    df_noticias = procesar_noticias_hoy()
+    df_precios = download_bitcoin_finance_data()
+    # Convertir la columna 'fecha' a tipo datetime
+    df_noticias['fecha'] = pd.to_datetime(df_noticias['fecha'])
+    df_precios['Fecha'] = pd.to_datetime(df_precios['Fecha'])
 
+    # Unir los datasets por fecha
+    df_unido = pd.merge(df_precios, df_noticias, left_on='Fecha', right_on='fecha', how='left')
+    df_unido['score'] = df_unido['score'].fillna(0)
+    df_unido = df_unido[['Fecha', 'score', 'Close']]
+
+
+    return df_unido
 # 3. Entrenar el modelo de bitcoin y trackearlo con ml flow
+def entrenar_modelo():
+    # Cargar el modelo pre-entrenado
+    df=unir_datasets()
+    # Separar características y etiquetas
+    X = df[['score']]
+    y = df['Close']
+    # Entrenar el modelo prophet
+    model = Prophet()
+    model.add_regressor('score')
+    model.fit(df.rename(columns={'Fecha': 'ds', 'Close': 'y'}))
+    # Guardar el modelo entrenado
+    return model,X,y
+# 4. Hacer la predicción
+@task
+def predecir_precio():
+    # Cargar el modelo entrenado
+    model,X,Y = entrenar_modelo()
+    # Crear un DataFrame para la predicción
+    future = model.make_future_dataframe(periods=7)
+    future['score'] = 0
+    # Hacer la predicción
+    forecast = model.predict(future)
+    # Obtener el precio predicho
+    # Seleccionar los últimos 7 días de predicción con sus intervalos
+    predicciones_7dias = forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].tail(7)
+
+    # Establecer la fecha como índice
+    predicciones_7dias = predicciones_7dias.set_index('ds')
+
+    # Renombrar columnas (opcional)
+    predicciones_7dias = predicciones_7dias.rename(columns={
+        'yhat': 'prediccion',
+        'yhat_lower': 'min_confianza',
+        'yhat_upper': 'max_confianza'
+    })
+   
+
+    fig = model.plot(forecast)
+    plt.show()
+
+
+    return predicciones_7dias
+    
 
 # 4. Hacer la prediccion
 
@@ -128,7 +177,7 @@ def guardar_dataset_actualizado():
 # 6. Crear un flujo de trabajo que ejecute todas las tareas en orden a las 9:00 am
 @flow
 def flujo_prediccion_bitcoin():
-    print(guardar_dataset_actualizado())
-    
+    #print(procesar_noticias_hoy())
+    print(predecir_precio())
 if __name__ == "__main__":
     flujo_prediccion_bitcoin()
