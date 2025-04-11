@@ -4,6 +4,10 @@ import joblib
 import yfinance as yf
 import requests
 from datetime import datetime, timedelta
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
+import torch
+import torch.nn.functional as F
+
 # 1. Carga de datos
 # Descargar las noticias / Crypto panic
 @task
@@ -34,19 +38,17 @@ def download_bitcoin_news():
     df_final=df.rename(columns={"title": "titulo", "published_at": "fecha"})
     df_final=df_final[["titulo", "fecha"]]
     #df_final.to_csv("../Datos/noticias_bitcoin_hoy.csv", index=False)
-    
 
     return df_final 
 # Descargar los datos de Bitcoin / yfiannce
 @task
-@task
 def download_bitcoin_finance_data():
     """
     Descarga datos históricos de Bitcoin usando yfinance.
-    Aquí usamos un período de 5 días y un intervalo diario,
+    Aquí usamos un período de 1 día y un intervalo diario,
     pero puedes ajustar estos parámetros según tus necesidades.
     """
-    # Obtener laS noticias de hace 5 días
+    # Obtener laS noticias de hace 1 días
     
     btc_data = yf.download("BTC-USD", period="1d", interval="1d")
     
@@ -73,16 +75,48 @@ def download_bitcoin_finance_data():
 
     return btc_data
 
-# Eliminar noticias con la fecha mas antigua y concatenar al dataset original
+#Procesar noticias de hoy
 @task
-def eliminar_noticias_duplicadas():
+def procesar_noticias_hoy():
     df=download_bitcoin_news()
+    # Cargar modelo y tokenizer
+    model_name = 'cardiffnlp/twitter-roberta-base-sentiment-latest'
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    model = AutoModelForSequenceClassification.from_pretrained(model_name)
+
+# Función para calcular el sentimiento de una frase
+    def get_sentiment_score(text):
+        inputs = tokenizer(text, return_tensors="pt", truncation=True)
+        outputs = model(**inputs)
+        probs = F.softmax(outputs.logits, dim=1).detach().numpy()[0]
+        neg, neu, pos = probs
+        score = -1 * neg + 0 * neu + 1 * pos
+        return score
+
+# Aplicar a la columna de títulos
+    df['score'] = df['titulo'].apply(get_sentiment_score)
+    
+
+# Mostrar resultados
 
     return df
-
+# Agrupar noticias por fecha y calcular el promedio de sentimiento
+@task
+def agrupar_noticias_por_fecha():
+    df = procesar_noticias_hoy()
+    df['fecha'] = pd.to_datetime(df['fecha'])
+    # Agrupar por fecha y calcular el promedio del sentimiento
+    df_grouped = df.groupby(df['fecha'].dt.date).agg({'score': 'mean'}).reset_index()
+    return df_grouped
 # Eliminar valor de close con fecha mas antigua y concatenar al dataset original
 @task
-
+# Guradar el dataset actualizado
+def guardar_dataset_actualizado():
+    df_grouped = agrupar_noticias_por_fecha()
+    df_news=pd.read_csv("Datos/noticias_bitcoin_sentimientos.csv")
+    df_news=df_news[['fecha','score']].drop_duplicates(subset='fecha', keep='last')
+    return df_news.columns,df_grouped.columns
+    
 # 2. Entrenar el modelo de noticas
 
 # 3. Entrenar el modelo de bitcoin y trackearlo con ml flow
@@ -94,7 +128,7 @@ def eliminar_noticias_duplicadas():
 # 6. Crear un flujo de trabajo que ejecute todas las tareas en orden a las 9:00 am
 @flow
 def flujo_prediccion_bitcoin():
-    print(download_bitcoin_finance_data())
-    ##download_bitcoin_news().info()
+    print(guardar_dataset_actualizado())
+    
 if __name__ == "__main__":
     flujo_prediccion_bitcoin()
