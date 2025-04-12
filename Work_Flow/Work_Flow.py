@@ -197,7 +197,7 @@ def flujo_prediccion_bitcoin():
     #Guardar resultados
     df = predecir_precio()
     fecha = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    ruta_csv = f"Work_Flow/Datos/predicciones_bitcoin_{fecha}.csv"
+    ruta_csv = f"Work_Flow/Predicciones/predicciones_bitcoin_{fecha}.csv"
     df.to_csv(ruta_csv, index=False)
      # Commit automático
     git_auto_commit(ruta_csv)
