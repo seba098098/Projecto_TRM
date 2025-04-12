@@ -1,10 +1,11 @@
 # prefect.yaml
 deployments:
   - name: "prediccion-bitcoin-deployment"
-    entrypoint: "Work_Flow/Work_Flow.py:flujo_prediccion_bitcoin"  # Ruta relativa al flow
+    entrypoint: "Work_Flow/Work_Flow.py:flujo_prediccion_bitcoin"
     storage:
       type: git
       repository: "https://github.com/seba098098/Projecto_TRM.git"
-      reference: "main"             # Rama
-      folder: "Work_Flow"           # Subcarpeta (opcional si el entrypoint ya incluye la ruta)
+      reference: "main"
+    schedule:
+      cron: "0 9 * * *"
       timezone: "UTC"
