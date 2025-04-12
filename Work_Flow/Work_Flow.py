@@ -1,4 +1,5 @@
-from prefect import flow, task
+from prefect import flow, task,get_run_logger
+
 import pandas as pd
 import joblib
 import yfinance as yf
@@ -13,6 +14,8 @@ import matplotlib.pyplot as plt
 import warnings
 import subprocess
 import os
+from prefect_github import GitHubRepository
+from prefect.blocks.system import Secret
 
 warnings.filterwarnings('ignore')
 # 1. Carga de datos
@@ -173,6 +176,31 @@ def git_auto_commit(file_path, commit_message=None):
     except Exception as e:
         print(f"Error en git_auto_commit: {e}")
         return False
+@task
+def guardar_y_subir(df, repo_path="Work_Flow/Predicciones/"):
+    """Guarda resultados y sube a GitHub"""
+    logger = get_run_logger()
+    
+    # 1. Crear nombre de archivo
+    fecha = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    nombre_archivo = f"prediccion_bitcoin_{fecha}.csv"
+    ruta_completa = f"{repo_path}{nombre_archivo}"
+    
+    # 2. Guardar localmente (temporal)
+    os.makedirs(repo_path, exist_ok=True)
+    df.to_csv(nombre_archivo, index=False)
+    logger.info(f"Archivo temporal creado: {nombre_archivo}")
+    
+    # 3. Subir a GitHub
+    try:
+        github = GitHubRepository.load("github-repo")
+        with open(nombre_archivo, "rb") as f:
+            github.put(ruta_completa, f.read())
+        logger.success(f"✅ Archivo subido a GitHub: {ruta_completa}")
+        return ruta_completa
+    except Exception as e:
+        logger.error(f"❌ Error al subir a GitHub: {str(e)}")
+        raise
 # 4. Hacer la predicción
 @task
 def predecir_precio():
@@ -192,6 +220,7 @@ def predecir_precio():
 
     # Renombrar columnas (opcional)
     predicciones_7dias = predicciones_7dias.rename(columns={
+        'ds': 'fecha',
         'yhat': 'prediccion',
         'yhat_lower': 'min_confianza',
         'yhat_upper': 'max_confianza'
@@ -207,25 +236,11 @@ def predecir_precio():
 # 6. Crear un flujo de trabajo que ejecute todas las tareas en orden a las 9:00 am
 @flow
 def flujo_prediccion_bitcoin():
-    # 1. Generar predicciones
     df = predecir_precio()
     
-    # 2. Guardar resultados
-    fecha = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    ruta_csv = f"Work_Flow/Predicciones/predicciones_bitcoin_{fecha}.csv"
+    # 2. Guardar y subir a GitHub
+    ruta_github = guardar_y_subir(df)
+    return ruta_github
     
-    # Asegurar que existe el directorio
-    os.makedirs(os.path.dirname(ruta_csv), exist_ok=True)
-    
-    df.to_csv(ruta_csv, index=False)
-    
-    # 3. Subir a GitHub
-    success = git_auto_commit(ruta_csv)
-    
-    if success:
-        print(f"✅ Predicciones guardadas y subidas a GitHub: {ruta_csv}")
-    else:
-        print("❌ Error al subir a GitHub")
-    git_auto_commit(ruta_csv)
 if __name__ == "__main__":
-    flujo_prediccion_bitcoin()
+    flujo_prediccion_bitcoin.serve(name="prediccion-bitcoin-deployment")
