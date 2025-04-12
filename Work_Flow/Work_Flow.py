@@ -11,6 +11,8 @@ from prophet import Prophet
 from prophet.plot import plot_plotly
 import matplotlib.pyplot as plt
 import warnings
+import subprocess
+
 warnings.filterwarnings('ignore')
 # 1. Carga de datos
 # Descargar las noticias / Crypto panic NewsAPI
@@ -140,6 +142,24 @@ def entrenar_modelo():
     model.fit(df.rename(columns={'Fecha': 'ds', 'Close': 'y'}))
     # Guardar el modelo entrenado
     return model,X,y
+# Guardar el modelo entrenado
+@task
+
+@task
+def git_auto_commit(file_path):
+    try:
+        # Configura usuario de Git (solo necesario la primera vez)
+        subprocess.run(["git", "config", "--global", "user.name", "santiloc-hub"])
+        subprocess.run(["git", "config", "--global", "user.email", "santiloc23456@gmail.com"])
+        
+        # Haz commit y push
+        subprocess.run(["git", "add", file_path])
+        subprocess.run(["git", "commit", "-m", f"Resultados automáticos {datetime.now().strftime('%Y-%m-%d %H:%M')}"])
+        subprocess.run(["git", "push"])
+        return True
+    except Exception as e:
+        print(f"Error en git_auto_commit: {e}")
+        return False
 # 4. Hacer la predicción
 @task
 def predecir_precio():
@@ -165,21 +185,21 @@ def predecir_precio():
     })
    
 
-    fig = model.plot(forecast)
-    plt.show()
 
 
     return predicciones_7dias
     
 
-# 4. Hacer la prediccion
-
-# 5. Guardar la prediccion en un archivo CSV
 
 # 6. Crear un flujo de trabajo que ejecute todas las tareas en orden a las 9:00 am
 @flow
 def flujo_prediccion_bitcoin():
-    #print(procesar_noticias_hoy())
-    print(predecir_precio())
+    #Guardar resultados
+    df = predecir_precio()
+    fecha = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    ruta_csv = f"Work_Flow/Datos/predicciones_bitcoin_{fecha}.csv"
+    df.to_csv(ruta_csv, index=False)
+     # Commit automático
+    git_auto_commit(ruta_csv)
 if __name__ == "__main__":
     flujo_prediccion_bitcoin()
