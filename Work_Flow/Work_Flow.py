@@ -1,5 +1,5 @@
 from prefect import flow, task,get_run_logger
-
+import base64
 import pandas as pd
 import joblib
 import yfinance as yf
@@ -177,29 +177,48 @@ def git_auto_commit(file_path, commit_message=None):
         print(f"Error en git_auto_commit: {e}")
         return False
 @task
-def guardar_y_subir(df, repo_path="Work_Flow/Predicciones/"):
+
+def guardar_y_subir(df, repo="seba098098/Projecto_TRM", branch="main", token="ghp_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", repo_path="Work_Flow/Predicciones/"):
     """Guarda resultados y sube a GitHub"""
     logger = get_run_logger()
-    
+
     # 1. Crear nombre de archivo
     fecha = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     nombre_archivo = f"prediccion_bitcoin_{fecha}.csv"
-    ruta_completa = f"{repo_path}{nombre_archivo}"
-    
-    # 2. Guardar localmente (temporal)
-    os.makedirs(repo_path, exist_ok=True)
-    df.to_csv(nombre_archivo, index=False)
-    logger.info(f"Archivo temporal creado: {nombre_archivo}")
-    
-    # 3. Subir a GitHub
+    ruta_local = nombre_archivo
+    ruta_repo = f"{repo_path}{nombre_archivo}"
+
+    # 2. Guardar archivo localmente
+    df.to_csv(ruta_local, index=False)
+    logger.info(f"📁 Archivo temporal creado: {ruta_local}")
+
+    # 3. Subir a GitHub usando la API
     try:
-        github = GitHubRepository.load("github-block")
-        with open(nombre_archivo, "rb") as f:
-            github.put(ruta_completa, f.read())
-        logger.success(f"✅ Archivo subido a GitHub: {ruta_completa}")
-        return ruta_completa
+        with open(ruta_local, "rb") as f:
+            contenido = base64.b64encode(f.read()).decode()
+
+        url = f"https://api.github.com/repos/{repo}/contents/{ruta_repo}"
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json"
+        }
+        data = {
+            "message": f"Subiendo predicción del {fecha}",
+            "content": contenido,
+            "branch": branch
+        }
+
+        response = requests.put(url, headers=headers, json=data)
+
+        if response.status_code in [200, 201]:
+            logger.info(f"✅ Archivo subido a GitHub: {ruta_repo}")
+        else:
+            logger.error(f"❌ Error al subir a GitHub: {response.json()}")
+            raise Exception(f"Error al subir: {response.json()}")
+
+        return ruta_repo
     except Exception as e:
-        logger.error(f"❌ Error al subir a GitHub: {str(e)}")
+        logger.error(f"❌ Error inesperado: {str(e)}")
         raise
 # 4. Hacer la predicción
 @task
