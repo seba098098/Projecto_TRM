@@ -1,9 +1,0 @@
-name: deployment-trm
-flow_name: mi_flow  # Reemplaza con el nombre de tu función @flow
-entrypoint: "Work_Flow/Work_Flow.py:mi_flow"  # Ruta exacta al archivo y función
-work_pool:
-  name: default-agent-pool
-storage:
-  type: github
-  repo: "seba098098/Projecto_TRM"  # ¡Solo "usuario/repo", sin .git o https://!
-  path: "WorkFlow/Work_Flow.py"     # Ruta relativa al flow dentro del reo

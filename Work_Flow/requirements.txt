@@ -10,3 +10,4 @@ torch
 prophet
 plotly
 matplotlib
+prefect_github
