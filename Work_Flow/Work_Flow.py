@@ -10,6 +10,8 @@ import torch.nn.functional as F
 from prophet import Prophet
 from prophet.plot import plot_plotly
 import matplotlib.pyplot as plt
+import warnings
+warnings.filterwarnings('ignore')
 # 1. Carga de datos
 # Descargar las noticias / Crypto panic NewsAPI
 @task
