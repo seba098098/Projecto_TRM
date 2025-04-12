@@ -12,6 +12,7 @@ from prophet.plot import plot_plotly
 import matplotlib.pyplot as plt
 import warnings
 import subprocess
+import os
 
 warnings.filterwarnings('ignore')
 # 1. Carga de datos
@@ -146,7 +147,7 @@ def entrenar_modelo():
 @task
 
 @task
-def git_auto_commit(file_path):
+def git_auto_commit(file_path, commit_message=None):
     try:
         # Configura usuario de Git (solo necesario la primera vez)
         subprocess.run(["git", "config", "--global", "user.name", "santiloc-hub"])
@@ -155,6 +156,18 @@ def git_auto_commit(file_path):
         # Haz commit y push
         subprocess.run(["git", "add", file_path])
         subprocess.run(["git", "commit", "-m", f"Resultados automáticos {datetime.now().strftime('%Y-%m-%d %H:%M')}"])
+        subprocess.run(["git", "push"])
+        # Asegurar que la carpeta existe
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        
+        # Commit y push
+        subprocess.run(["git", "add", file_path])
+        
+        if not commit_message:
+            fecha = datetime.now().strftime("%Y-%m-%d %H:%M")
+            commit_message = f"Actualización automática de predicciones {fecha}"
+            
+        subprocess.run(["git", "commit", "-m", commit_message])
         subprocess.run(["git", "push"])
         return True
     except Exception as e:
@@ -194,12 +207,25 @@ def predecir_precio():
 # 6. Crear un flujo de trabajo que ejecute todas las tareas en orden a las 9:00 am
 @flow
 def flujo_prediccion_bitcoin():
-    #Guardar resultados
+    # 1. Generar predicciones
     df = predecir_precio()
+    
+    # 2. Guardar resultados
     fecha = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     ruta_csv = f"Work_Flow/Predicciones/predicciones_bitcoin_{fecha}.csv"
+    
+    # Asegurar que existe el directorio
+    os.makedirs(os.path.dirname(ruta_csv), exist_ok=True)
+    
     df.to_csv(ruta_csv, index=False)
-     # Commit automático
+    
+    # 3. Subir a GitHub
+    success = git_auto_commit(ruta_csv)
+    
+    if success:
+        print(f"✅ Predicciones guardadas y subidas a GitHub: {ruta_csv}")
+    else:
+        print("❌ Error al subir a GitHub")
     git_auto_commit(ruta_csv)
 if __name__ == "__main__":
     flujo_prediccion_bitcoin()
