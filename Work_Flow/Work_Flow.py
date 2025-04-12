@@ -193,7 +193,7 @@ def guardar_y_subir(df, repo_path="Work_Flow/Predicciones/"):
     
     # 3. Subir a GitHub
     try:
-        github = GitHubRepository.load("github-repo")
+        github = GitHubRepository.load("github-block")
         with open(nombre_archivo, "rb") as f:
             github.put(ruta_completa, f.read())
         logger.success(f"✅ Archivo subido a GitHub: {ruta_completa}")
