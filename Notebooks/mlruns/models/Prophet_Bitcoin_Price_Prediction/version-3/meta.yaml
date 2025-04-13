@@ -1,0 +1,14 @@
+aliases: []
+creation_timestamp: 1744502104940
+current_stage: None
+description: null
+last_updated_timestamp: 1744502104940
+name: Prophet_Bitcoin_Price_Prediction
+run_id: 1fc9827207904add800abafe63227f7a
+run_link: null
+source: file:///c:/Users/Felipe/OneDrive/Documentos/Especializacion/toma%20de%20decisiones/Projecto_TRM/Notebooks/mlruns/353555079240007970/1fc9827207904add800abafe63227f7a/artifacts/prophet_model
+status: READY
+status_message: null
+storage_location: file:///c:/Users/Felipe/OneDrive/Documentos/Especializacion/toma%20de%20decisiones/Projecto_TRM/Notebooks/mlruns/353555079240007970/1fc9827207904add800abafe63227f7a/artifacts/prophet_model
+user_id: null
+version: 3

@@ -1,0 +1,14 @@
+aliases: []
+creation_timestamp: 1744513653042
+current_stage: None
+description: null
+last_updated_timestamp: 1744513653042
+name: XGBoost_Price_Prediction
+run_id: 9d24922be8754786b4e1db2f8bf08970
+run_link: null
+source: file:///c:/Users/Felipe/OneDrive/Documentos/Especializacion/toma%20de%20decisiones/Projecto_TRM/Notebooks/mlruns/490418962696976288/9d24922be8754786b4e1db2f8bf08970/artifacts/xgboost_model
+status: READY
+status_message: null
+storage_location: file:///c:/Users/Felipe/OneDrive/Documentos/Especializacion/toma%20de%20decisiones/Projecto_TRM/Notebooks/mlruns/490418962696976288/9d24922be8754786b4e1db2f8bf08970/artifacts/xgboost_model
+user_id: null
+version: 3
