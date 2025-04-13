@@ -178,7 +178,7 @@ def git_auto_commit(file_path, commit_message=None):
         return False
 @task
 
-def guardar_y_subir(df, repo="seba098098/Projecto_TRM", branch="main", token="ghp_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", repo_path="Work_Flow/Predicciones/"):
+def guardar_y_subir(df, repo="seba098098/Projecto_TRM", branch="main", token="ghp_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", repo_path="Work_Flow/Predicciones/"):
     """Guarda resultados y sube a GitHub"""
     logger = get_run_logger()
 
