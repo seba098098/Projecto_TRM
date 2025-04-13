@@ -1,0 +1,15 @@
+artifact_uri: file:///c:/Users/Felipe/OneDrive/Documentos/Especializacion/toma%20de%20decisiones/Projecto_TRM/Notebooks/mlruns/542057488392672303/d1b7611f0f63479bbd8ff00547a456e9/artifacts
+end_time: 1744517841650
+entry_point_name: ''
+experiment_id: '542057488392672303'
+lifecycle_stage: active
+run_id: d1b7611f0f63479bbd8ff00547a456e9
+run_name: prophet_price_model
+run_uuid: d1b7611f0f63479bbd8ff00547a456e9
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1744517816380
+status: 4
+tags: []
+user_id: SANTI
